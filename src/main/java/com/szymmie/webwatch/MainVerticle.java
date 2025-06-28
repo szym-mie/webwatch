@@ -18,10 +18,12 @@ import io.vertx.ext.web.client.WebClientOptions;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class MainVerticle extends AbstractVerticle {
   private static final long INIT_DELAY = 10_000;
@@ -34,7 +36,7 @@ public class MainVerticle extends AbstractVerticle {
     DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
 
   public Instant lastUpdated = null;
-  public List<String> emails = new LinkedList<>();
+  public Set<String> emails = new HashSet<>();
   public List<Document> documents = new LinkedList<>();
 
   private AghMailer mailer;
@@ -48,10 +50,12 @@ public class MainVerticle extends AbstractVerticle {
       } else {
         Log.i(TAG, "retrieved config");
         JsonObject config = ar.result();
-        mailer = AghMailer.create(
-          vertx,
-          config.getString("MAIL_USERNAME"),
-          config.getString("MAIL_PASSWORD"));
+        String username = config.getString("MAIL_USERNAME");
+        String password = config.getString("MAIL_PASSWORD");
+        Log.i(TAG, "mailer config");
+        Log.c(TAG, "username", username);
+        Log.c(TAG, "password", "*".repeat(password.length()));
+        mailer = AghMailer.create(vertx, username, password);
       }
     });
 
@@ -64,6 +68,7 @@ public class MainVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
     router.get("/").produces("text/html").handler(this::handleIndex);
     router.get("/join").produces("text/html").handler(this::handleJoin);
+    router.get("/quit").produces("text/html").handler(this::handleQuit);
     Log.i(Log.TAG, "registered routes:");
     router.getRoutes().forEach(route -> Log.c(TAG, route.getPath()));
 
@@ -120,7 +125,8 @@ public class MainVerticle extends AbstractVerticle {
       Html.h5("emails: "),
       Html.table(
         Map.of(
-          "email", v -> v
+          "email", v -> v,
+          "actions", v -> Html.a("/quit?email=" + v, "quit")
         ),
         emails
       ),
@@ -144,7 +150,8 @@ public class MainVerticle extends AbstractVerticle {
     if (name == null || name.contains("@") || name.contains(".")) {
       String html = Html.doc("Web-Watch /join",
         Html.h3("Error"),
-        Html.p("email name cannot contain '@' or '.'")
+        Html.p("email name cannot contain '@' or '.'"),
+        Html.a("/", "to homepage")
       );
       Log.w(TAG, "could not register " + name);
       ctx.response().end(html);
@@ -154,6 +161,25 @@ public class MainVerticle extends AbstractVerticle {
       emails.add(email);
       String html = Html.doc("Web-Watch /join",
         Html.h3("Joined as " + email),
+        Html.a("/", "to homepage")
+      );
+      ctx.response().end(html);
+    }
+  }
+
+  private void handleQuit(RoutingContext ctx) {
+    HttpServerRequest req = ctx.request();
+    String email = req.getParam("email");
+    if (email == null || !emails.contains(email)) {
+      String html = Html.doc("Web-Watch /quit",
+        Html.h3("No such " + email),
+        Html.a("/", "to homepage")
+      );
+      ctx.response().end(html);
+    } else {
+      emails.remove(email);
+      String html = Html.doc("Web-Watch /quit",
+        Html.h3("Quit " + email),
         Html.a("/", "to homepage")
       );
       ctx.response().end(html);
