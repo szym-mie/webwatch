@@ -165,11 +165,20 @@ public class MainVerticle extends AbstractVerticle {
       String email = name + "@student.agh.edu.pl";
       Log.d(TAG, "registered " + email);
       emails.add(email);
-      String html = Html.doc("Web-Watch /join",
+      String pageHtml = Html.doc("Web-Watch /join",
         Html.h3("Joined as " + email),
         Html.a("/", "to homepage")
       );
-      ctx.response().end(html);
+      String emailHtml = Html.h3("Web-Watch - you subscribed to watch changes");
+      String subject = "[notification] - Web-Watch - joined";
+      mailer.send(subject, email, emailHtml).onComplete(mre -> {
+        if (mre.succeeded()) {
+          Log.v(TAG, "sent email to " + email);
+        } else {
+          Log.w(TAG, "email not sent to " + email);
+        }
+      });
+      ctx.response().end(pageHtml);
     }
   }
 
@@ -205,7 +214,7 @@ public class MainVerticle extends AbstractVerticle {
       documents.add(0, newDocument);
       Log.v(TAG, "upserted document");
 
-      String subject = "[notification] - Web-Watch";
+      String subject = "[notification] - Web-Watch - change detected";
       String html =
         Html.h3("Web-Watch - notification") +
         Html.h5("We detected a change:") +
