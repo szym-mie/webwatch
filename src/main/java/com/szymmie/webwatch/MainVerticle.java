@@ -2,6 +2,7 @@ package com.szymmie.webwatch;
 
 import com.szymmie.webwatch.html.Html;
 import com.szymmie.webwatch.log.Log;
+import com.szymmie.webwatch.log.PrettyLogFormatter;
 import com.szymmie.webwatch.log.Tag;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.core.AbstractVerticle;
@@ -43,6 +44,11 @@ public class MainVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
+    Log.formatter = new PrettyLogFormatter();
+    Log.i(Log.TAG, "using formatter", PrettyLogFormatter.TAG);
+
+    Log.s(TAG, "deploying...");
+
     ConfigRetriever configRetriever = ConfigRetriever.create(vertx);
     configRetriever.getConfig().onComplete(ar -> {
       if (ar.failed()) {
