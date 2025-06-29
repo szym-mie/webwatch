@@ -15,6 +15,9 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
+import io.vertx.redis.client.Redis;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.Response;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class MainVerticle extends AbstractVerticle {
   private static final long INIT_DELAY = 10_000;
@@ -40,7 +44,8 @@ public class MainVerticle extends AbstractVerticle {
   public Set<String> emails = new HashSet<>();
   public List<Document> documents = new LinkedList<>();
 
-  private AghMailer mailer;
+  private AghMailer mailer = null;
+  private RedisAPI redis = null;
 
   @Override
   public void start(Promise<Void> startPromise) {
@@ -56,12 +61,38 @@ public class MainVerticle extends AbstractVerticle {
       } else {
         Log.i(TAG, "retrieved config");
         JsonObject config = ar.result();
+
         String username = config.getString("MAIL_USERNAME");
         String password = config.getString("MAIL_PASSWORD");
         Log.i(TAG, "mailer config");
         Log.c(TAG, "username", username);
         Log.c(TAG, "password", "*".repeat(password.length()));
         mailer = AghMailer.create(vertx, username, password);
+
+        String url = config.getString("REDIS_URL");
+        Log.i(TAG, "redis config");
+        Log.c(TAG, "url", url);
+        Log.s(TAG, "connecting on redis");
+        Redis.createClient(vertx, url)
+          .connect()
+          .onComplete(conn -> {
+            if (conn.succeeded()) {
+              Log.v(TAG, "connected to redis");
+              redis = RedisAPI.api(conn.result());
+              redis.lrange("emails", "0", "-1")
+                .onSuccess(res -> {
+                  emails = res.stream()
+                    .map(Response::toString)
+                    .collect(Collectors.toSet());
+                  Log.v(TAG, "loaded " + emails.size() + " emails");
+                })
+                .onFailure(err ->
+                  Log.e(TAG, "failed to read emails from redis", err.getMessage())
+                );
+            } else {
+              startPromise.fail(conn.cause());
+            }
+          });
       }
     });
 
@@ -75,7 +106,7 @@ public class MainVerticle extends AbstractVerticle {
     router.get("/").produces("text/html").handler(this::handleIndex);
     router.get("/join").produces("text/html").handler(this::handleJoin);
     router.get("/quit").produces("text/html").handler(this::handleQuit);
-    Log.i(Log.TAG, "registered routes:");
+    Log.i(TAG, "registered routes:");
     router.getRoutes().forEach(route -> Log.c(TAG, route.getPath()));
 
     vertx.createHttpServer().requestHandler(router)
@@ -169,6 +200,7 @@ public class MainVerticle extends AbstractVerticle {
         Html.h3("Joined as " + email),
         Html.a("/", "to homepage")
       );
+      redis.lpush(List.of("emails", email));
       String emailHtml = Html.h3("Web-Watch - you subscribed to watch changes");
       String subject = "[notification] - Web-Watch - joined";
       mailer.send(subject, email, emailHtml).onComplete(mre -> {
