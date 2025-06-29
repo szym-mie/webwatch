@@ -24,14 +24,15 @@ public class Document {
     if (lastDocument == null)
       return true;
 
-    if (bytes.length == lastDocument.bytes.length) {
-      for (int i = 0; i < bytes.length; i++) {
-        if (bytes[i] != lastDocument.bytes[i])
-          return true;
-      }
-      return false;
+    if (bytes.length != lastDocument.bytes.length)
+      return true;
+
+    for (int i = 0; i < bytes.length; i++) {
+      if (bytes[i] != lastDocument.bytes[i])
+        return true;
     }
-    return true;
+
+    return false;
   }
 
   private static String formatInstant(Instant instant) {
