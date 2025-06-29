@@ -12,28 +12,26 @@ public class Document {
 
   private final Instant createdAt;
   private final byte[] bytes;
-  private final Document previousDocument;
+  private final Document lastDocument;
 
-  public Document(Instant createdAt, byte[] bytes, Document previousDocument) {
+  public Document(Instant createdAt, byte[] bytes, Document lastDocument) {
     this.createdAt = createdAt;
     this.bytes = bytes;
-    this.previousDocument = previousDocument;
+    this.lastDocument = lastDocument;
   }
 
   public boolean isNewer() {
-    if (previousDocument == null)
+    if (lastDocument == null)
       return true;
 
-    if (createdAt.compareTo(previousDocument.createdAt) > 0) {
-      if (bytes.length == previousDocument.bytes.length) {
-        for (int i = 0; i < bytes.length; i++) {
-          if (bytes[i] != previousDocument.bytes[i])
-            return true;
-        }
+    if (bytes.length == lastDocument.bytes.length) {
+      for (int i = 0; i < bytes.length; i++) {
+        if (bytes[i] != lastDocument.bytes[i])
+          return true;
       }
+      return false;
     }
-
-    return false;
+    return true;
   }
 
   private static String formatInstant(Instant instant) {
@@ -46,8 +44,8 @@ public class Document {
   }
 
   public String getChangeMessage() {
-    if (previousDocument != null) {
-      int lengthDifference = bytes.length - previousDocument.bytes.length;
+    if (lastDocument != null) {
+      int lengthDifference = bytes.length - lastDocument.bytes.length;
       return lengthDifference > 0 ?
         "+ " + lengthDifference + " bytes" :
         "- " + lengthDifference + " bytes";
