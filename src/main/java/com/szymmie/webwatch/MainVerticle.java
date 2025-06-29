@@ -201,7 +201,9 @@ public class MainVerticle extends AbstractVerticle {
         Html.a("/", "to homepage")
       );
       redis.lpush(List.of("emails", email));
-      String emailHtml = Html.h3("Web-Watch - you subscribed to watch changes");
+      String emailHtml =
+        Html.h3("Web-Watch - you subscribed to watch changes") +
+        Html.pre("Host: " + HOST, "Path: " + PATH);
       String subject = "[notification] - Web-Watch - joined";
       mailer.send(subject, email, emailHtml).onComplete(mre -> {
         if (mre.succeeded()) {
@@ -250,6 +252,7 @@ public class MainVerticle extends AbstractVerticle {
       String html =
         Html.h3("Web-Watch - notification") +
         Html.h5("We detected a change:") +
+        Html.pre("Host: " + HOST, "Path: " + PATH, "---") +
         newDocument.toHtml();
       Log.s(TAG, "sending " + emails.size() + " emails");
       for (String email : emails) {

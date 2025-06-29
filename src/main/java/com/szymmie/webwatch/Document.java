@@ -57,9 +57,7 @@ public class Document {
   }
 
   public String toHtml() {
-    return
-      Html.h3("document change:") +
-      Html.h5(getChangeTime()) +
-      Html.h5(getChangeMessage());
+    String change = getChangeTime() + " | " + getChangeMessage();
+    return Html.pre("document change:", change);
   }
 }
